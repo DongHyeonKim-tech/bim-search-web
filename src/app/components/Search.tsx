@@ -457,13 +457,8 @@ const Search = ({
                 <h2>관련 자료</h2>
                 <ul>
                   {turn.results.map((result) => (
-                    <li>
-                      <a
-                        key={result.doc_id}
-                        href={result.video_url}
-                      >
-                        {result.title}
-                      </a>
+                    <li key={result.doc_id}>
+                      <a href={result.video_url}>{result.title}</a>
                     </li>
                   ))}
                 </ul>
