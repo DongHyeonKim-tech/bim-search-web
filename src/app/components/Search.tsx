@@ -451,19 +451,25 @@ const Search = ({
             >
               {turn.summary}
             </ReactMarkdown>
-            {turn.results.length > 0 && (
-              <>
-                <hr />
-                <h2>관련 자료</h2>
-                <ul>
-                  {turn.results.map((result) => (
-                    <li key={result.doc_id}>
-                      <a href={result.video_url}>{result.title}</a>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
+            {turn.results.length > 0 &&
+              turn.summary !== "관련 자료가 없습니다." &&
+              turn.summary && (
+                <>
+                  <hr />
+                  <h2>관련 자료</h2>
+                  <ul>
+                    {turn.results.map((result) => (
+                      <li key={result.doc_id}>
+                        <a href={result.video_url}>
+                          {result.title
+                            .replace("/README", "")
+                            .replace(".md", "")}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
           </div>
           <Flex
             gap={14}
