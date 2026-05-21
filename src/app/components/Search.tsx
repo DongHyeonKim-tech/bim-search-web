@@ -458,9 +458,28 @@ const Search = ({
                   <hr />
                   <h2>관련 자료</h2>
                   <ul>
-                    {turn.results.map((result) => (
-                      <li key={result.doc_id}>
+                    {turn.results.map((result, index) => (
+                      <li key={`${result.doc_id}-${index + 1}`}>
                         <a href={result.video_url}>
+                          {result.video_url.startsWith(
+                            "https://bim-framework"
+                          ) ? (
+                            <Image
+                              src="/search/images/framework-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : result.video_url.startsWith(
+                              "https://bim-learning"
+                            ) ? (
+                            <Image
+                              src="/search/images/learning-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : null}
                           {result.title
                             .replace("/README", "")
                             .replace(".md", "")}
@@ -614,6 +633,10 @@ const Search = ({
         );
     }
   };
+
+  useEffect(() => {
+    console.log("messageTurns: ", messageTurns);
+  }, [messageTurns]);
 
   return (
     <>
