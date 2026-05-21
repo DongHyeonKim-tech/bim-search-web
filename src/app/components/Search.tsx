@@ -634,10 +634,6 @@ const Search = ({
     }
   };
 
-  useEffect(() => {
-    console.log("messageTurns: ", messageTurns);
-  }, [messageTurns]);
-
   return (
     <>
       <div
