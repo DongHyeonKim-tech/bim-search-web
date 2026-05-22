@@ -38,6 +38,7 @@ export interface SearchResult {
   video_url: string;
   video_label: string | null;
   images: string[];
+  top_category: string;
 }
 
 export interface SearchResponse {
@@ -53,6 +54,7 @@ export interface SearchSource {
   video_label: string;
   snippet: string;
   images: string[];
+  top_category: string;
 }
 
 export interface SearchResponseOpenAI {

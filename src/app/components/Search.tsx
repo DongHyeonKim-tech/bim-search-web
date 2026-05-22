@@ -324,6 +324,7 @@ const Search = ({
           video_url: source.video_url,
           video_label: source.video_label,
           images: source.images,
+          top_category: source.top_category,
         })
       );
 
@@ -461,20 +462,23 @@ const Search = ({
                     {turn.results.map((result, index) => (
                       <li key={`${result.doc_id}-${index + 1}`}>
                         <a href={result.video_url}>
-                          {result.video_url.startsWith(
-                            "https://bim-framework"
-                          ) ? (
+                          {result.top_category === "framework" ? (
                             <Image
                               src="/search/images/framework-active.svg"
                               alt="video"
                               width={16}
                               height={16}
                             />
-                          ) : result.video_url.startsWith(
-                              "https://bim-learning"
-                            ) ? (
+                          ) : result.top_category === "learning" ? (
                             <Image
                               src="/search/images/learning-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : result.top_category === "meetup / seminar" ? (
+                            <Image
+                              src="/search/images/meetup-active.svg"
                               alt="video"
                               width={16}
                               height={16}
