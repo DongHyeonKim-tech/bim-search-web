@@ -29,9 +29,7 @@ export default function Home() {
   const [imageUrl, setImageUrl] = useState<string>("");
 
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
-  const [searchInput, setSearchInput] = useState(
-    "신규 BIM 프로젝트 시작 시에 도움이 될 만한 사항 정리해줘"
-  );
+  const [searchInput, setSearchInput] = useState("");
   const [fetchChatRoomsLoading, setFetchChatRoomsLoading] =
     useState<boolean>(false);
   const [chatRooms, setChatRooms] = useState<ChatRoomData[]>([]);

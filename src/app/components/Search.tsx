@@ -749,15 +749,15 @@ const Search = ({
                 <div
                   onClick={() => {
                     setSelectedCategory(item.key);
-                    setSearchInput(
-                      item.key === "all"
-                        ? "신규 BIM 프로젝트 시작 시에 도움이 될 만한 사항 정리해줘"
-                        : item.key === "Learning"
-                          ? "Curtain Wall 작성법 알려줘"
-                          : item.key === "MeetUp / Seminar"
-                            ? "공동주택 BIM 사례 소개해줘"
-                            : "프로젝트 파일 생성하는 방법 알려줘"
-                    );
+                    // setSearchInput(
+                    //   item.key === "all"
+                    //     ? "신규 BIM 프로젝트 시작 시에 도움이 될 만한 사항 정리해줘"
+                    //     : item.key === "Learning"
+                    //       ? "Curtain Wall 작성법 알려줘"
+                    //       : item.key === "MeetUp / Seminar"
+                    //         ? "공동주택 BIM 사례 소개해줘"
+                    //         : "프로젝트 파일 생성하는 방법 알려줘"
+                    // );
                   }}
                   onMouseEnter={() => setHoveredCategory(item.key)}
                   onMouseLeave={() => setHoveredCategory(null)}

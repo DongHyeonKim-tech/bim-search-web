@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import styles from "@/styles/sidebar.module.css";
-import { Modal, Spin } from "antd";
+import { Modal, Spin, Tooltip } from "antd";
 import Image from "next/image";
 import { LoadingOutlined } from "@ant-design/icons";
 
@@ -140,11 +140,13 @@ const Sidebar = ({
                           size="small"
                         />
                       ) : (
-                        <span
-                          className={`${styles.chatRoomItemTitle} ${chatId === item.chatId ? styles.chatRoomItemTitleActive : ""}`}
-                        >
-                          {item.title}
-                        </span>
+                        <Tooltip title={item.title}>
+                          <span
+                            className={`${styles.chatRoomItemTitle} ${chatId === item.chatId ? styles.chatRoomItemTitleActive : ""}`}
+                          >
+                            {item.title}
+                          </span>
+                        </Tooltip>
                       )}
                       {item.chatId && chatId === item.chatId && chatLoading && (
                         <Spin

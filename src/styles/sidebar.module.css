@@ -170,6 +170,9 @@
   font-style: normal;
   font-weight: 500;
   line-height: 152%; /* 21.28px */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatRoomItemTitleActive {
