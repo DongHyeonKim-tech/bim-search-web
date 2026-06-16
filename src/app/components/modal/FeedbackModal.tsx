@@ -1,13 +1,5 @@
 import { Code } from "@/app/Interface";
-import {
-  Modal,
-  Checkbox,
-  Flex,
-  Input,
-  Button,
-  notification,
-  Typography,
-} from "antd";
+import { Modal, Checkbox, Flex, Input, Button, notification } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import {
   createFeedback,
@@ -51,6 +43,7 @@ export const FeedbackModal = ({
       };
       fetchFeedbackCodes();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {

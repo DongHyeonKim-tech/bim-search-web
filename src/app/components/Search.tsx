@@ -17,14 +17,7 @@ import {
   ChatRoomData,
 } from "@/app/Interface";
 import "@ant-design/v5-patch-for-react-19";
-import {
-  notification,
-  Spin,
-  Flex,
-  Button,
-  Tooltip,
-  Image as AntdImage,
-} from "antd";
+import { notification, Spin, Flex, Tooltip, Image as AntdImage } from "antd";
 import styles from "@/styles/search.module.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -130,7 +123,7 @@ const searchCategoryList: {
 ];
 
 const ChartMarkdownBlock = memo(
-  ({ raw }: { raw: string }) => {
+  function ChartMarkdownBlock({ raw }: { raw: string }) {
     const chartSpec = useMemo(() => {
       try {
         return JSON.parse(raw);
@@ -156,183 +149,186 @@ type AssistantContentProps = {
 };
 
 const AssistantContent = memo(
-  ({
+  function AssistantContent({
     turn,
     onRate,
     onOpenFeedbackModal,
     setFeedbackId,
-  }: AssistantContentProps) => (
-    <div
-      className={styles.chatTurnBlock}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        return false;
-      }}
-    >
-      {turn.summary ? (
-        <div className={styles.chatBubbleAssistant}>
-          <div className="markdown">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                img: ({ src, alt }) => (
-                  <AntdImage
-                    src={src as string}
-                    alt={alt || "image"}
-                    preview
-                    className={styles.chatBubbleAssistantImage}
-                  />
-                ),
-                code({ className, children }) {
-                  const lang = className?.replace("language-", "");
-                  const raw = String(children).trim();
+  }: AssistantContentProps) {
+    return (
+      <div
+        className={styles.chatTurnBlock}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          return false;
+        }}
+      >
+        {turn.summary ? (
+          <div className={styles.chatBubbleAssistant}>
+            <div className="markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={{
+                  img: ({ src, alt }) => (
+                    <AntdImage
+                      src={src as string}
+                      alt={alt || "image"}
+                      preview
+                      className={styles.chatBubbleAssistantImage}
+                    />
+                  ),
+                  code({ className, children }) {
+                    const lang = className?.replace("language-", "");
+                    const raw = String(children).trim();
 
-                  if (lang === "hljs chart-json") {
-                    return <ChartMarkdownBlock raw={raw} />;
-                  }
+                    if (lang === "hljs chart-json") {
+                      return <ChartMarkdownBlock raw={raw} />;
+                    }
 
-                  return (
-                    <code
-                      className={className}
-                      style={{ fontFamily: "Pretendard" }}
-                    >
-                      {children}
-                    </code>
-                  );
-                },
-              }}
+                    return (
+                      <code
+                        className={className}
+                        style={{ fontFamily: "Pretendard" }}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {turn.summary}
+              </ReactMarkdown>
+              {turn.results.length > 0 &&
+                turn.summary !== "관련 자료가 없습니다." &&
+                turn.summary && (
+                  <>
+                    <hr />
+                    <h2>관련 자료</h2>
+                    <ul>
+                      {turn.results.map((result, index) => (
+                        <li key={`${result.doc_id}-${index + 1}`}>
+                          <a href={result.video_url}>
+                            {result.top_category === "framework" ? (
+                              <Image
+                                src="/search/images/framework-active.svg"
+                                alt="video"
+                                width={16}
+                                height={16}
+                              />
+                            ) : result.top_category === "learning" ? (
+                              <Image
+                                src="/search/images/learning-active.svg"
+                                alt="video"
+                                width={16}
+                                height={16}
+                              />
+                            ) : result.top_category === "meetup / seminar" ? (
+                              <Image
+                                src="/search/images/meetup-active.svg"
+                                alt="video"
+                                width={16}
+                                height={16}
+                              />
+                            ) : null}
+                            {result.title
+                              .replace("/README", "")
+                              .replace(".md", "")}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+            </div>
+            <Flex
+              gap={14}
+              align="center"
+              justify="flex-start"
             >
-              {turn.summary}
-            </ReactMarkdown>
-            {turn.results.length > 0 &&
-              turn.summary !== "관련 자료가 없습니다." &&
-              turn.summary && (
-                <>
-                  <hr />
-                  <h2>관련 자료</h2>
-                  <ul>
-                    {turn.results.map((result, index) => (
-                      <li key={`${result.doc_id}-${index + 1}`}>
-                        <a href={result.video_url}>
-                          {result.top_category === "framework" ? (
-                            <Image
-                              src="/search/images/framework-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : result.top_category === "learning" ? (
-                            <Image
-                              src="/search/images/learning-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : result.top_category === "meetup / seminar" ? (
-                            <Image
-                              src="/search/images/meetup-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : null}
-                          {result.title
-                            .replace("/README", "")
-                            .replace(".md", "")}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </>
+              <Tooltip title="좋아요">
+                <Image
+                  src={
+                    turn.rating === 1
+                      ? "/search/images/thumbs-up-active.svg"
+                      : "/search/images/thumbs-up.svg"
+                  }
+                  alt="thumbs-up"
+                  width={20}
+                  height={20}
+                  className={styles.iconButton}
+                  onClick={() => {
+                    if (turn.messageId) {
+                      onRate(turn.messageId, turn.rating === 1 ? 0 : 1);
+                    }
+                  }}
+                />
+              </Tooltip>
+
+              <Tooltip title="싫어요">
+                <Image
+                  src={
+                    turn.rating === -1
+                      ? "/search/images/thumbs-down-active.svg"
+                      : "/search/images/thumbs-down.svg"
+                  }
+                  alt="thumbs-down"
+                  width={20}
+                  height={20}
+                  className={styles.iconButton}
+                  onClick={() => {
+                    if (turn.messageId) {
+                      onRate(turn.messageId, turn.rating === -1 ? 0 : -1);
+                    }
+                  }}
+                />
+              </Tooltip>
+
+              {turn.feedbackId ? (
+                <Tooltip title="피드백">
+                  <Image
+                    src="/search/images/comment-active.svg"
+                    alt="comment"
+                    width={20}
+                    height={20}
+                    onClick={() => {
+                      onOpenFeedbackModal(turn.messageId ?? 0);
+                      setFeedbackId(turn.feedbackId ?? 0);
+                    }}
+                    className={styles.iconButton}
+                  />
+                </Tooltip>
+              ) : (
+                <Tooltip title="피드백">
+                  <Image
+                    src="/search/images/comment.svg"
+                    alt="comment"
+                    width={20}
+                    height={20}
+                    onClick={() => {
+                      onOpenFeedbackModal(turn.messageId ?? 0);
+                    }}
+                    className={styles.iconButton}
+                  />
+                </Tooltip>
               )}
+            </Flex>
           </div>
-          <Flex
-            gap={14}
-            align="center"
-            justify="flex-start"
-          >
-            <Tooltip title="좋아요">
-              <Image
-                src={
-                  turn.rating === 1
-                    ? "/search/images/thumbs-up-active.svg"
-                    : "/search/images/thumbs-up.svg"
-                }
-                alt="thumbs-up"
-                width={20}
-                height={20}
-                className={styles.iconButton}
-                onClick={() => {
-                  if (turn.messageId) {
-                    onRate(turn.messageId, turn.rating === 1 ? 0 : 1);
-                  }
-                }}
-              />
-            </Tooltip>
-
-            <Tooltip title="싫어요">
-              <Image
-                src={
-                  turn.rating === -1
-                    ? "/search/images/thumbs-down-active.svg"
-                    : "/search/images/thumbs-down.svg"
-                }
-                alt="thumbs-down"
-                width={20}
-                height={20}
-                className={styles.iconButton}
-                onClick={() => {
-                  if (turn.messageId) {
-                    onRate(turn.messageId, turn.rating === -1 ? 0 : -1);
-                  }
-                }}
-              />
-            </Tooltip>
-
-            {turn.feedbackId ? (
-              <Tooltip title="피드백">
-                <Image
-                  src="/search/images/comment-active.svg"
-                  alt="comment"
-                  width={20}
-                  height={20}
-                  onClick={() => {
-                    onOpenFeedbackModal(turn.messageId ?? 0);
-                    setFeedbackId(turn.feedbackId ?? 0);
-                  }}
-                  className={styles.iconButton}
-                />
-              </Tooltip>
-            ) : (
-              <Tooltip title="피드백">
-                <Image
-                  src="/search/images/comment.svg"
-                  alt="comment"
-                  width={20}
-                  height={20}
-                  onClick={() => {
-                    onOpenFeedbackModal(turn.messageId ?? 0);
-                  }}
-                  className={styles.iconButton}
-                />
-              </Tooltip>
-            )}
-          </Flex>
-        </div>
-      ) : (
-        <div className={styles.chatBubbleAssistant}>
-          답변을 불러올 수 없습니다.
-        </div>
-      )}
-    </div>
-  ),
+        ) : (
+          <div className={styles.chatBubbleAssistant}>
+            답변을 불러올 수 없습니다.
+          </div>
+        )}
+      </div>
+    );
+  },
   (prev, next) =>
     prev.turn === next.turn &&
     prev.onRate === next.onRate &&
     prev.onOpenFeedbackModal === next.onOpenFeedbackModal &&
     prev.setFeedbackId === next.setFeedbackId
 );
+AssistantContent.displayName = "AssistantContent";
 
 const Search = ({
   searchInput,
@@ -430,150 +426,147 @@ const Search = ({
     el.scrollTop = el.scrollHeight - el.clientHeight;
   }, [currentTurn?.summary, searchLoading, stickToBottom]);
 
-  const onSearchOpenAI = useCallback(async () => {
-    if (!searchInput.trim() || !user.empNo) return;
-    setStickToBottom(true);
-    setChatLoading(true);
-    if (chatId) {
+  const onSearchOpenAI = useCallback(
+    async () => {
+      if (!searchInput.trim() || !user.empNo) return;
+      setStickToBottom(true);
       setChatLoading(true);
-    } else {
-      setNewChatLoading(true);
-    }
-    const searchParams: SearchParamsOpenAI = {
-      query: searchInput,
-      top_k: 20,
-      use_context: 5,
-      temperature: 0.5,
-      model: selectedModel,
-      filters:
-        selectedCategory === "all"
-          ? undefined
-          : {
-              categories: {
-                top: selectedCategory,
+      if (chatId) {
+        setChatLoading(true);
+      } else {
+        setNewChatLoading(true);
+      }
+      const searchParams: SearchParamsOpenAI = {
+        query: searchInput,
+        top_k: 20,
+        use_context: 5,
+        temperature: 0.5,
+        model: selectedModel,
+        filters:
+          selectedCategory === "all"
+            ? undefined
+            : {
+                categories: {
+                  top: selectedCategory,
+                },
               },
-            },
-      chat_id: chatId,
-      embedding_model: "nlpai-lab/KURE-v1",
-      emp_no: user.empNo,
-    };
-    try {
-      setSearchLoading(true);
-      setCurrentTurn((prev) =>
-        prev
-          ? { ...prev, summary: "", results: [], filters: selectedCategory }
-          : {
-              messageId: null,
-              query: searchInput,
-              summary: "",
-              results: [],
-              filters: selectedCategory,
-              rating: 0,
-            }
-      );
+        chat_id: chatId,
+        embedding_model: "nlpai-lab/KURE-v1",
+        emp_no: user.empNo,
+      };
+      try {
+        setSearchLoading(true);
+        setCurrentTurn((prev) =>
+          prev
+            ? { ...prev, summary: "", results: [], filters: selectedCategory }
+            : {
+                messageId: null,
+                query: searchInput,
+                summary: "",
+                results: [],
+                filters: selectedCategory,
+                rating: 0,
+              }
+        );
 
-      const response = await searchOpenAIStream(searchParams, {
-        onDelta(content) {
+        const response = await searchOpenAIStream(searchParams, {
+          onDelta(content) {
+            setCurrentTurn((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    summary: (prev.summary ?? "") + content,
+                    filters: selectedCategory,
+                    rating: 0,
+                  }
+                : {
+                    messageId: null,
+                    query: searchInput,
+                    summary: content,
+                    results: [],
+                    filters: selectedCategory,
+                    rating: 0,
+                  }
+            );
+          },
+        });
+
+        onStreamMetaUpdate(
+          response.chat_id ?? null,
+          response.user_message_id ?? null,
+          response.title ?? null
+        );
+
+        setSearchInput("");
+
+        if (response.noContent) {
           setCurrentTurn((prev) =>
             prev
               ? {
                   ...prev,
-                  summary: (prev.summary ?? "") + content,
+                  summary: "관련 정보가 없습니다.",
+                  results: [],
                   filters: selectedCategory,
                   rating: 0,
                 }
               : {
                   messageId: null,
                   query: searchInput,
-                  summary: content,
+                  summary: "관련 정보가 없습니다.",
                   results: [],
                   filters: selectedCategory,
                   rating: 0,
                 }
           );
-        },
-      });
+          return;
+        }
 
-      onStreamMetaUpdate(
-        response.chat_id ?? null,
-        response.user_message_id ?? null,
-        response.title ?? null
-      );
+        const convertedResults: SearchResult[] = (response.sources ?? []).map(
+          (source) => ({
+            doc_id: source.doc_id,
+            title: source.title,
+            snippet: source.snippet,
+            video_url: source.video_url,
+            video_label: source.video_label,
+            images: source.images,
+            top_category: source.top_category,
+          })
+        );
 
-      setSearchInput("");
-
-      if (response.noContent) {
         setCurrentTurn((prev) =>
           prev
             ? {
                 ...prev,
-                summary: "관련 정보가 없습니다.",
-                results: [],
+                summary: prev.summary || response.summary || "",
+                results: convertedResults,
                 filters: selectedCategory,
                 rating: 0,
               }
             : {
                 messageId: null,
                 query: searchInput,
-                summary: "관련 정보가 없습니다.",
-                results: [],
+                summary: response.summary || "",
+                results: convertedResults,
                 filters: selectedCategory,
                 rating: 0,
               }
         );
-        return;
+      } catch (err) {
+        const errorMessage = (err as Error).message;
+        console.error("OpenAI Search error:", errorMessage);
+        notification.error({
+          message: "OpenAI 검색 중 오류가 발생했습니다.",
+          description: errorMessage,
+        });
+      } finally {
+        setSearchLoading(false);
+        setNewChatLoading(false);
+        setChatLoading(false);
       }
-
-      const convertedResults: SearchResult[] = (response.sources ?? []).map(
-        (source) => ({
-          doc_id: source.doc_id,
-          title: source.title,
-          snippet: source.snippet,
-          video_url: source.video_url,
-          video_label: source.video_label,
-          images: source.images,
-          top_category: source.top_category,
-        })
-      );
-
-      setCurrentTurn((prev) =>
-        prev
-          ? {
-              ...prev,
-              summary: prev.summary || response.summary || "",
-              results: convertedResults,
-              filters: selectedCategory,
-              rating: 0,
-            }
-          : {
-              messageId: null,
-              query: searchInput,
-              summary: response.summary || "",
-              results: convertedResults,
-              filters: selectedCategory,
-              rating: 0,
-            }
-      );
-    } catch (err) {
-      const errorMessage = (err as Error).message;
-      console.error("OpenAI Search error:", errorMessage);
-      notification.error({
-        message: "OpenAI 검색 중 오류가 발생했습니다.",
-        description: errorMessage,
-      });
-    } finally {
-      setSearchLoading(false);
-      setNewChatLoading(false);
-      setChatLoading(false);
-    }
-  }, [
-    searchInput,
-    selectedModel,
-    setSearchInput,
-    user,
-    chatId,
-    selectedCategory,
-  ]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchInput, selectedModel, setSearchInput, user, chatId, selectedCategory]
+  );
 
   const handleSearchSubmit = useCallback(
     (e?: React.FormEvent) => {
