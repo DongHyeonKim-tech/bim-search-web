@@ -4,6 +4,8 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useMemo,
+  memo,
   Dispatch,
   SetStateAction,
 } from "react";
@@ -31,6 +33,7 @@ import SearchForm from "@/app/components/SearchForm";
 import Image from "next/image";
 import FeedbackModal from "@/app/components/modal/FeedbackModal";
 import { useUserStore } from "@/utils/store";
+import ChartRenderer from "@/app/components/ChartRender";
 
 const searchCategoryList: {
   key: "all" | "Learning" | "MeetUp / Seminar" | "framework";
@@ -125,6 +128,211 @@ const searchCategoryList: {
     ),
   },
 ];
+
+const ChartMarkdownBlock = memo(
+  ({ raw }: { raw: string }) => {
+    const chartSpec = useMemo(() => {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }, [raw]);
+
+    if (!chartSpec) {
+      return <pre>{raw}</pre>;
+    }
+
+    return <ChartRenderer spec={chartSpec} />;
+  },
+  (prev, next) => prev.raw === next.raw
+);
+
+type AssistantContentProps = {
+  turn: Turn;
+  onRate: (messageId: number, rating: number) => void;
+  onOpenFeedbackModal: (messageId: number) => void;
+  setFeedbackId: Dispatch<SetStateAction<number | null>>;
+};
+
+const AssistantContent = memo(
+  ({
+    turn,
+    onRate,
+    onOpenFeedbackModal,
+    setFeedbackId,
+  }: AssistantContentProps) => (
+    <div
+      className={styles.chatTurnBlock}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+    >
+      {turn.summary ? (
+        <div className={styles.chatBubbleAssistant}>
+          <div className="markdown">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeHighlight]}
+              components={{
+                img: ({ src, alt }) => (
+                  <AntdImage
+                    src={src as string}
+                    alt={alt || "image"}
+                    preview
+                    className={styles.chatBubbleAssistantImage}
+                  />
+                ),
+                code({ className, children }) {
+                  const lang = className?.replace("language-", "");
+                  const raw = String(children).trim();
+
+                  if (lang === "hljs chart-json") {
+                    return <ChartMarkdownBlock raw={raw} />;
+                  }
+
+                  return (
+                    <code
+                      className={className}
+                      style={{ fontFamily: "Pretendard" }}
+                    >
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {turn.summary}
+            </ReactMarkdown>
+            {turn.results.length > 0 &&
+              turn.summary !== "관련 자료가 없습니다." &&
+              turn.summary && (
+                <>
+                  <hr />
+                  <h2>관련 자료</h2>
+                  <ul>
+                    {turn.results.map((result, index) => (
+                      <li key={`${result.doc_id}-${index + 1}`}>
+                        <a href={result.video_url}>
+                          {result.top_category === "framework" ? (
+                            <Image
+                              src="/search/images/framework-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : result.top_category === "learning" ? (
+                            <Image
+                              src="/search/images/learning-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : result.top_category === "meetup / seminar" ? (
+                            <Image
+                              src="/search/images/meetup-active.svg"
+                              alt="video"
+                              width={16}
+                              height={16}
+                            />
+                          ) : null}
+                          {result.title
+                            .replace("/README", "")
+                            .replace(".md", "")}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+          </div>
+          <Flex
+            gap={14}
+            align="center"
+            justify="flex-start"
+          >
+            <Tooltip title="좋아요">
+              <Image
+                src={
+                  turn.rating === 1
+                    ? "/search/images/thumbs-up-active.svg"
+                    : "/search/images/thumbs-up.svg"
+                }
+                alt="thumbs-up"
+                width={20}
+                height={20}
+                className={styles.iconButton}
+                onClick={() => {
+                  if (turn.messageId) {
+                    onRate(turn.messageId, turn.rating === 1 ? 0 : 1);
+                  }
+                }}
+              />
+            </Tooltip>
+
+            <Tooltip title="싫어요">
+              <Image
+                src={
+                  turn.rating === -1
+                    ? "/search/images/thumbs-down-active.svg"
+                    : "/search/images/thumbs-down.svg"
+                }
+                alt="thumbs-down"
+                width={20}
+                height={20}
+                className={styles.iconButton}
+                onClick={() => {
+                  if (turn.messageId) {
+                    onRate(turn.messageId, turn.rating === -1 ? 0 : -1);
+                  }
+                }}
+              />
+            </Tooltip>
+
+            {turn.feedbackId ? (
+              <Tooltip title="피드백">
+                <Image
+                  src="/search/images/comment-active.svg"
+                  alt="comment"
+                  width={20}
+                  height={20}
+                  onClick={() => {
+                    onOpenFeedbackModal(turn.messageId ?? 0);
+                    setFeedbackId(turn.feedbackId ?? 0);
+                  }}
+                  className={styles.iconButton}
+                />
+              </Tooltip>
+            ) : (
+              <Tooltip title="피드백">
+                <Image
+                  src="/search/images/comment.svg"
+                  alt="comment"
+                  width={20}
+                  height={20}
+                  onClick={() => {
+                    onOpenFeedbackModal(turn.messageId ?? 0);
+                  }}
+                  className={styles.iconButton}
+                />
+              </Tooltip>
+            )}
+          </Flex>
+        </div>
+      ) : (
+        <div className={styles.chatBubbleAssistant}>
+          답변을 불러올 수 없습니다.
+        </div>
+      )}
+    </div>
+  ),
+  (prev, next) =>
+    prev.turn === next.turn &&
+    prev.onRate === next.onRate &&
+    prev.onOpenFeedbackModal === next.onOpenFeedbackModal &&
+    prev.setFeedbackId === next.setFeedbackId
+);
 
 const Search = ({
   searchInput,
@@ -425,173 +633,6 @@ const Search = ({
 
   const tabPanelClass = `${styles.tabPanel} ${styles.tabPanel500}`;
 
-  const renderAssistantContent = (turn: Turn) => (
-    <div
-      className={styles.chatTurnBlock}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        return false;
-      }}
-    >
-      {turn.summary ? (
-        <div className={styles.chatBubbleAssistant}>
-          <div className="markdown">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                img: ({ src, alt }) => (
-                  <AntdImage
-                    src={src as string}
-                    alt={alt || "image"}
-                    preview
-                    className={styles.chatBubbleAssistantImage}
-                  />
-                ),
-              }}
-            >
-              {turn.summary}
-            </ReactMarkdown>
-            {turn.results.length > 0 &&
-              turn.summary !== "관련 자료가 없습니다." &&
-              turn.summary && (
-                <>
-                  <hr />
-                  <h2>관련 자료</h2>
-                  <ul>
-                    {turn.results.map((result, index) => (
-                      <li key={`${result.doc_id}-${index + 1}`}>
-                        <a href={result.video_url}>
-                          {result.top_category === "framework" ? (
-                            <Image
-                              src="/search/images/framework-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : result.top_category === "learning" ? (
-                            <Image
-                              src="/search/images/learning-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : result.top_category === "meetup / seminar" ? (
-                            <Image
-                              src="/search/images/meetup-active.svg"
-                              alt="video"
-                              width={16}
-                              height={16}
-                            />
-                          ) : null}
-                          {result.title
-                            .replace("/README", "")
-                            .replace(".md", "")}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-          </div>
-          <Flex
-            gap={14}
-            align="center"
-            justify="flex-start"
-          >
-            <Tooltip title="좋아요">
-              <Image
-                src={
-                  turn.rating === 1
-                    ? "/search/images/thumbs-up-active.svg"
-                    : "/search/images/thumbs-up.svg"
-                }
-                alt="thumbs-up"
-                width={20}
-                height={20}
-                className={styles.iconButton}
-                onClick={() => {
-                  if (turn.messageId) {
-                    handleUpdateChatMessageRating(
-                      turn.messageId,
-                      turn.rating === 1 ? 0 : 1
-                    );
-                  }
-                }}
-              />
-            </Tooltip>
-
-            <Tooltip title="싫어요">
-              <Image
-                src={
-                  turn.rating === -1
-                    ? "/search/images/thumbs-down-active.svg"
-                    : "/search/images/thumbs-down.svg"
-                }
-                alt="thumbs-down"
-                width={20}
-                height={20}
-                className={styles.iconButton}
-                onClick={() => {
-                  if (turn.messageId) {
-                    handleUpdateChatMessageRating(
-                      turn.messageId,
-                      turn.rating === -1 ? 0 : -1
-                    );
-                  }
-                }}
-              />
-            </Tooltip>
-
-            {turn.feedbackId ? (
-              <Tooltip title="피드백">
-                <Image
-                  src="/search/images/comment-active.svg"
-                  alt="comment"
-                  width={20}
-                  height={20}
-                  onClick={() => {
-                    openFeedbackModal(turn.messageId ?? 0);
-                    setSelectedFeedbackModalFeedbackId(turn.feedbackId ?? 0);
-                  }}
-                  className={styles.iconButton}
-                />
-              </Tooltip>
-            ) : (
-              <Tooltip title="피드백">
-                <Image
-                  src="/search/images/comment.svg"
-                  alt="comment"
-                  width={20}
-                  height={20}
-                  onClick={() => {
-                    openFeedbackModal(turn.messageId ?? 0);
-                  }}
-                  className={styles.iconButton}
-                />
-              </Tooltip>
-            )}
-            {/* <Image
-              src="/search/images/copy.svg"
-              alt="copy"
-              width={20}
-              height={20}
-              className={styles.iconButton}
-              onClick={() => {
-                navigator.clipboard.writeText(turn.summary);
-                notification.success({ message: "복사되었습니다." });
-              }}
-            /> */}
-          </Flex>
-        </div>
-      ) : (
-        <div className={styles.chatBubbleAssistant}>
-          답변을 불러올 수 없습니다.
-        </div>
-      )}
-    </div>
-  );
-
   const hasContent =
     messageTurns.length > 0 ||
     currentTurn?.query ||
@@ -690,7 +731,12 @@ const Search = ({
                     </span>
                   )}
                 </div>
-                {renderAssistantContent(turn)}
+                <AssistantContent
+                  turn={turn}
+                  onRate={handleUpdateChatMessageRating}
+                  onOpenFeedbackModal={openFeedbackModal}
+                  setFeedbackId={setSelectedFeedbackModalFeedbackId}
+                />
               </div>
             </div>,
           ])}
@@ -724,7 +770,12 @@ const Search = ({
                     <span className={styles.loadingText}>검색 중입니다...</span>
                   </div>
                 ) : (
-                  renderAssistantContent(currentTurn)
+                  <AssistantContent
+                    turn={currentTurn}
+                    onRate={handleUpdateChatMessageRating}
+                    onOpenFeedbackModal={openFeedbackModal}
+                    setFeedbackId={setSelectedFeedbackModalFeedbackId}
+                  />
                 )}
               </div>
             </div>
