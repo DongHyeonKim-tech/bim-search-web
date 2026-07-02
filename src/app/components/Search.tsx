@@ -195,6 +195,7 @@ const AssistantContent = memo(
                       </code>
                     );
                   },
+                  hr: () => null,
                 }}
               >
                 {turn.summary}
