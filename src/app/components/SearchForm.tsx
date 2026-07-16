@@ -12,6 +12,7 @@ export type SearchFormProps = {
   placeholder?: string;
   showStopButton?: boolean;
   onStop?: () => void;
+  searchInputRef?: React.RefObject<HTMLInputElement> | null;
 };
 
 export default function SearchForm({
@@ -22,6 +23,7 @@ export default function SearchForm({
   placeholder = "검색어를 입력해주세요.",
   showStopButton = false,
   onStop,
+  searchInputRef,
 }: SearchFormProps) {
   return (
     <form
@@ -61,9 +63,10 @@ export default function SearchForm({
       </Space.Compact> */}
       <div className={styles.searchSection}>
         <input
+          ref={searchInputRef}
           type="text"
-          size={20}
           placeholder={placeholder}
+          size={20}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={styles.searchInput}

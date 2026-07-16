@@ -376,6 +376,8 @@ const Search = ({
 
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({
       top: scrollContainerRef.current?.scrollHeight,
@@ -563,6 +565,11 @@ const Search = ({
         setSearchLoading(false);
         setNewChatLoading(false);
         setChatLoading(false);
+
+        // disabled 해제 후 리렌더가 끝나야 focus가 동작함
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 1);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -824,6 +831,7 @@ const Search = ({
             onChange={setSearchInput}
             onSubmit={handleSearchSubmit}
             loading={searchLoading}
+            searchInputRef={searchInputRef as React.RefObject<HTMLInputElement>}
           />
         </div>
       </div>
