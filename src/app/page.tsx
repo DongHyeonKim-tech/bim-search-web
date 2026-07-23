@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import styles from "@/styles/search.module.css";
 import Sidebar from "@/app/layout/Sidebar";
 import {
@@ -42,6 +42,8 @@ export default function Home() {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false);
   const [checkAuthModalOpen, setCheckAuthModalOpen] = useState<boolean>(false);
   const [adminModalOpen, setAdminModalOpen] = useState<boolean>(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const checkHubToken = async () => {
     setLoginLoading(true);
@@ -112,6 +114,7 @@ export default function Home() {
   };
 
   const createTempChatRoomHandler = async () => {
+    searchInputRef.current?.focus();
     setNewChatLoading(false);
     if (chatId) {
       setChatId(null);
@@ -133,6 +136,7 @@ export default function Home() {
   useEffect(() => {
     if (user.empNo) {
       fetchChatRooms();
+      searchInputRef.current?.focus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -317,6 +321,9 @@ export default function Home() {
               <Search
                 searchInput={searchInput}
                 setSearchInput={setSearchInput}
+                searchInputRef={
+                  searchInputRef as React.RefObject<HTMLInputElement>
+                }
                 chatId={chatId}
                 onStreamMetaUpdate={handleLearningStreamMeta}
                 messageTurns={messageTurns}

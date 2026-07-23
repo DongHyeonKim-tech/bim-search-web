@@ -334,6 +334,7 @@ AssistantContent.displayName = "AssistantContent";
 const Search = ({
   searchInput,
   setSearchInput,
+  searchInputRef,
   chatId,
   onStreamMetaUpdate,
   messageTurns,
@@ -346,6 +347,7 @@ const Search = ({
 }: {
   searchInput: string;
   setSearchInput: (input: string) => void;
+  searchInputRef: React.RefObject<HTMLInputElement>;
   chatId: number | null;
   onStreamMetaUpdate: (
     chatId: number | null,
@@ -375,8 +377,6 @@ const Search = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
-
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({
