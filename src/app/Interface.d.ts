@@ -97,6 +97,7 @@ export interface SearchParamsOpenAI {
   chat_id?: number | null;
   embedding_model?: string;
   emp_no?: string;
+  user_email?: string;
 }
 
 export interface SearchParamsFramework {

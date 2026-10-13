@@ -218,7 +218,7 @@ export default function Home() {
       checkHubToken();
     } else {
       if (process.env.NEXT_PUBLIC_ENV === "development") {
-        updateUser({ empNo: "20230808" });
+        updateUser({ empNo: "20230808", email: "dhyeon.kim@haeahn.com" });
       } else {
         window.location.href =
           "https://hubnx.haeahn.com/login/#/login?redirect=bim";

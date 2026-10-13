@@ -80,6 +80,7 @@ export async function searchOpenAIStream(
       chat_id: params.chat_id,
       embedding_model: params.embedding_model,
       emp_no: params.emp_no,
+      user_email: params.user_email,
     }),
   });
 

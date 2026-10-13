@@ -17,7 +17,14 @@ import {
   ChatRoomData,
 } from "@/app/Interface";
 import "@ant-design/v5-patch-for-react-19";
-import { notification, Spin, Flex, Tooltip, Image as AntdImage } from "antd";
+import {
+  notification,
+  Spin,
+  Flex,
+  Tooltip,
+  Image as AntdImage,
+  Select,
+} from "antd";
 import styles from "@/styles/search.module.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -120,6 +127,15 @@ const searchCategoryList: {
       />
     ),
   },
+];
+
+const modelOptions = [
+  { label: "GPT-5.6-Terra", value: "gpt-5.6-terra" },
+  { label: "GPT-6.1-Sol", value: "gpt-6.1-sol" },
+  { label: "Gemini-3.8-Flash", value: "gemini-3.8-flash" },
+  { label: "GPT-5.6-Luna", value: "gpt-5.6-luna" },
+  { label: "GPT-6-Luna", value: "gpt-6-luna" },
+  { label: "Gemini-Pro-Latest", value: "gemini-pro-latest" },
 ];
 
 const ChartMarkdownBlock = memo(
@@ -364,7 +380,18 @@ const Search = ({
 }) => {
   const { user } = useUserStore();
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedModel] = useState<"kure" | "baai" | "full" | "json">("kure");
+  const [selectedModel, setSelectedModel] = useState<
+    | "claude-sonnet-5-5"
+    | "gpt-6-luna"
+    | "gemini-pro-latest"
+    | "gpt-6-sol"
+    | "gpt-5.6-terra"
+    | "gpt-6.1-sol"
+    | "gemini-3.8-flash"
+    | "gpt-5.6-luna"
+    | "claude-sonnet-5"
+  >("gpt-5.6-terra");
+
   const [selectedCategory, setSelectedCategory] = useState<
     "all" | "Learning" | "MeetUp / Seminar" | "framework"
   >("all");
@@ -456,6 +483,7 @@ const Search = ({
         chat_id: chatId,
         embedding_model: "nlpai-lab/KURE-v1",
         emp_no: user.empNo,
+        user_email: user.email,
       };
       try {
         setSearchLoading(true);
@@ -822,6 +850,20 @@ const Search = ({
                 </div>
               </Tooltip>
             ))}
+          </div>
+          <div>
+            <Select
+              options={modelOptions}
+              onChange={(value) =>
+                setSelectedModel(value as typeof selectedModel)
+              }
+              value={selectedModel}
+              className={styles.searchModelSelect}
+              disabled={searchLoading}
+            >
+              <Select.Option value="gpt-4o">GPT-4o</Select.Option>
+              <Select.Option value="gpt-4o-mini">GPT-4o-mini</Select.Option>
+            </Select>
           </div>
         </div>
 
