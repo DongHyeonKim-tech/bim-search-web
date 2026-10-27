@@ -9,12 +9,17 @@ import {
   Dispatch,
   SetStateAction,
 } from "react";
-import { searchOpenAIStream, updateChatMessageRating } from "@/utils/searchApi";
+import {
+  searchOpenAIStream,
+  updateChatMessageRating,
+  getModelOptions,
+} from "@/utils/searchApi";
 import {
   SearchResult,
   SearchParamsOpenAI,
   Turn,
   ChatRoomData,
+  ModelOption,
 } from "@/app/Interface";
 import "@ant-design/v5-patch-for-react-19";
 import {
@@ -380,17 +385,22 @@ const Search = ({
 }) => {
   const { user } = useUserStore();
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<
-    | "claude-sonnet-5-5"
-    | "gpt-6-luna"
-    | "gemini-pro-latest"
-    | "gpt-6-sol"
-    | "gpt-5.6-terra"
-    | "gpt-6.1-sol"
-    | "gemini-3.8-flash"
-    | "gpt-5.6-luna"
-    | "claude-sonnet-5"
-  >("gpt-5.6-terra");
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
+  const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
+  useEffect(() => {
+    const fetchModelOptions = async () => {
+      const response = await getModelOptions();
+      const options = response.data.map((option) => ({
+        ...option,
+        label: option.id.toUpperCase(),
+        value: option.id,
+      }));
+      setModelOptions(options);
+      setSelectedModel(response.data[0].id);
+    };
+    fetchModelOptions();
+  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<
     "all" | "Learning" | "MeetUp / Seminar" | "framework"

@@ -247,3 +247,20 @@ export interface AdminUserList {
   empNo: string;
   userNm: string;
 }
+
+export interface ModelOptionResponse {
+  data: ModelOption[];
+  object: string;
+}
+
+export interface ModelOption {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+  mode: string;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  label?: string;
+  value?: string;
+}

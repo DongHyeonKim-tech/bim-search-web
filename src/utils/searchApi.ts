@@ -12,6 +12,7 @@ import {
   Code,
   Feedback,
   AdminUserList,
+  ModelOptionResponse,
 } from "@/app/Interface";
 import camelcaseKeys from "camelcase-keys";
 import { client } from "@/utils/client";
@@ -480,3 +481,13 @@ export async function getAdminUserList(
   });
   return camelcaseKeys(response.data);
 }
+
+export const getModelOptions = async (): Promise<ModelOptionResponse> => {
+  const url = "http://omni-db.haeahn.com:4000/models";
+  const response = await axios.get(url, {
+    headers: {
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_OMNI_API_KEY}`,
+    },
+  });
+  return camelcaseKeys(response.data) as ModelOptionResponse;
+};
