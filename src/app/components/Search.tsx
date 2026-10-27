@@ -141,6 +141,10 @@ const modelOptions = [
   { label: "GPT-5.6-Luna", value: "gpt-5.6-luna" },
   { label: "GPT-6-Luna", value: "gpt-6-luna" },
   { label: "Gemini-Pro-Latest", value: "gemini-pro-latest" },
+  { label: "Claude-Sonnet-5-5", value: "claude-sonnet-5-5" },
+  { label: "GPT-6-Sol", value: "gpt-6-sol" },
+  { label: "Claude-Sonnet-5", value: "claude-sonnet-5" },
+  { label: "GPT-6.1-Terra", value: "gpt-6.1-terra" },
 ];
 
 const ChartMarkdownBlock = memo(
@@ -385,22 +389,22 @@ const Search = ({
 }) => {
   const { user } = useUserStore();
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-5.6-terra");
 
-  const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
-  useEffect(() => {
-    const fetchModelOptions = async () => {
-      const response = await getModelOptions();
-      const options = response.data.map((option) => ({
-        ...option,
-        label: option.id.toUpperCase(),
-        value: option.id,
-      }));
-      setModelOptions(options);
-      setSelectedModel(response.data[0].id);
-    };
-    fetchModelOptions();
-  }, []);
+  // const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
+  // useEffect(() => {
+  //   const fetchModelOptions = async () => {
+  //     const response = await getModelOptions();
+  //     const options = response.data.map((option) => ({
+  //       ...option,
+  //       label: option.id.toUpperCase(),
+  //       value: option.id,
+  //     }));
+  //     setModelOptions(options);
+  //     setSelectedModel(response.data[0].id);
+  //   };
+  //   fetchModelOptions();
+  // }, []);
 
   const [selectedCategory, setSelectedCategory] = useState<
     "all" | "Learning" | "MeetUp / Seminar" | "framework"
