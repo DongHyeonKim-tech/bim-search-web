@@ -483,11 +483,6 @@ export async function getAdminUserList(
 }
 
 export const getModelOptions = async (): Promise<ModelOptionResponse> => {
-  const url = `${process.env.NEXT_PUBLIC_OMNI_API_BASE}/models`;
-  const response = await axios.get(url, {
-    headers: {
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_OMNI_API_KEY}`,
-    },
-  });
+  const response = await client.get("/models");
   return camelcaseKeys(response.data) as ModelOptionResponse;
 };
