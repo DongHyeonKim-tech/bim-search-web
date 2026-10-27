@@ -483,7 +483,7 @@ export async function getAdminUserList(
 }
 
 export const getModelOptions = async (): Promise<ModelOptionResponse> => {
-  const url = "http://omni-db.haeahn.com:4000/models";
+  const url = `${process.env.NEXT_PUBLIC_OMNI_API_BASE}/models`;
   const response = await axios.get(url, {
     headers: {
       Authorization: `Bearer ${process.env.NEXT_PUBLIC_OMNI_API_KEY}`,
