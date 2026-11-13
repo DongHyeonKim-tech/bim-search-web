@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+.next
+coverage
+*.log
+.DS_Store
+.env.local
+.env.*.local
+.env.deploy*
+README.md
+*.zip
+# .env.development and .env.production MUST remain in build context for env-cmd.

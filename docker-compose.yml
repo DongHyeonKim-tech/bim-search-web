@@ -1,0 +1,29 @@
+services:
+  app:
+    image: ${IMAGE_NAME:?IMAGE_NAME required}:${IMAGE_TAG:?IMAGE_TAG required}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_ENV: ${BUILD_ENV:?BUILD_ENV required}
+    ports:
+      - "0.0.0.0:${HOST_PORT:?HOST_PORT required}:3000"
+    env_file:
+      - ${RUNTIME_ENV_FILE}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
