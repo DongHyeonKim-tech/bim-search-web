@@ -38,7 +38,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "overrides": {
-    "@types/react": "$@types/react",
-    "@types/react-dom": "$@types/react-dom"
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
   }
 }
