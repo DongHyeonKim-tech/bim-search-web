@@ -1,12 +1,9 @@
 FROM node:24-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json .npmrc ./
+COPY package.json package-lock.json
 
-RUN node -v && npm -v
-
-# @haeahn-design/* is resolved from Nexus and requires the project .npmrc.
-RUN sed -i 's/\r$//' .npmrc && npm ci && rm -f .npmrc
-
+RUN npm config set registry https://registry.npmjs.org/ \
+    && npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app
