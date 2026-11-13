@@ -389,7 +389,7 @@ const Search = ({
 }) => {
   const { user } = useUserStore();
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>("gpt-5.6-terra");
+  const [selectedModel, setSelectedModel] = useState<string>("");
 
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   useEffect(() => {

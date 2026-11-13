@@ -3,7 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   basePath: "/search",
   images: {
-    domains: ["hub.haeahn.com", "bim-cdn.haeahn.com"],
+    remotePatterns: [
+      { protocol: "https", hostname: "hub.haeahn.com" },
+      { protocol: "https", hostname: "bim-cdn.haeahn.com" },
+    ],
   },
 };
 

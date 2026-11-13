@@ -34,7 +34,7 @@ export default function Home() {
     useState<boolean>(false);
   const [chatRooms, setChatRooms] = useState<ChatRoomData[]>([]);
   const [chatId, setChatId] = useState<number | null>(null);
-  const [_, setMessageId] = useState<number | null>(null);
+  const [, setMessageId] = useState<number | null>(null);
   const [newChatLoading, setNewChatLoading] = useState<boolean>(false);
   const [chatLoading, setChatLoading] = useState<boolean>(false);
   const [messageTurns, setMessageTurns] = useState<Turn[]>([]);
