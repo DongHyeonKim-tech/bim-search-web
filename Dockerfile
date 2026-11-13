@@ -4,10 +4,6 @@ COPY package.json package-lock.json .npmrc ./
 
 RUN node -v && npm -v
 
-RUN node -e "const l=require('./package-lock.json'); \
-console.log('jquery:', l.packages?.['node_modules/jquery']?.version); \
-console.log('lockfileVersion:', l.lockfileVersion)"
-
 # @haeahn-design/* is resolved from Nexus and requires the project .npmrc.
 RUN sed -i 's/\r$//' .npmrc && npm ci && rm -f .npmrc
 
