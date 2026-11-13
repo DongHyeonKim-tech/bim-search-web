@@ -2,8 +2,17 @@ FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json
 
-RUN npm config set registry https://registry.npmjs.org/ \
-    && npm ci
+RUN node -v && npm -v
+
+RUN node -e "\
+const p=require('./package.json'); \
+const l=require('./package-lock.json'); \
+console.log('package:', p.name, p.version); \
+console.log('lock:', l.name, l.version); \
+console.log('lock root:', l.packages[''].name, l.packages[''].version); \
+"
+
+RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app
