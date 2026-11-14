@@ -6,9 +6,11 @@ set -a
 source .env.production
 set +a
 : "${IMAGE_NAME:?Set IMAGE_NAME}"
+: "${NGINX_SITE:?Set NGINX_SITE}"
 : "${BLUE_PORT:?Set BLUE_PORT}"
 : "${GREEN_PORT:?Set GREEN_PORT}"
 [[ "$IMAGE_NAME" =~ ^[a-z0-9][a-z0-9_.-]*$ ]] || { echo 'Invalid IMAGE_NAME' >&2; exit 1; }
+[[ "$NGINX_SITE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Invalid NGINX_SITE' >&2; exit 1; }
 for port in "$BLUE_PORT" "$GREEN_PORT"; do
   [[ "$port" =~ ^[0-9]+$ ]] && (( port>=1 && port<=65535 )) || { echo 'Invalid port' >&2; exit 1; }
 done
@@ -17,7 +19,7 @@ done
 BUILD_ENV=prod
 RUNTIME_ENV_FILE=.env.production
 [[ -f "$RUNTIME_ENV_FILE" ]] || { echo 'Missing .env.production' >&2; exit 1; }
-site="/etc/nginx/sites-available/$IMAGE_NAME"
+site="/etc/nginx/sites-available/$NGINX_SITE"
 [[ -f "$site" ]] || { echo "Missing Nginx site: $site" >&2; exit 1; }
 command -v nginx >/dev/null
 command -v flock >/dev/null
