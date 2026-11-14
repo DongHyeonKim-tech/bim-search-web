@@ -16,6 +16,8 @@ for port in "$BLUE_PORT" "$GREEN_PORT"; do
 done
 [[ "$BLUE_PORT" != "$GREEN_PORT" ]] || { echo 'Ports must differ' >&2; exit 1; }
 [[ "${BUILD_ENV:-prod}" == prod ]] || { echo 'Production requires BUILD_ENV=prod' >&2; exit 1; }
+# next.config.ts basePath. `/` returns 404, so readiness must hit this path.
+APP_PATH=/search
 BUILD_ENV=prod
 RUNTIME_ENV_FILE=.env.production
 [[ -f "$RUNTIME_ENV_FILE" ]] || { echo 'Missing .env.production' >&2; exit 1; }
@@ -55,16 +57,19 @@ echo "Deploying $new_project on $target_port (active: $old_project on $current)"
 docker compose --env-file .env.production -p "$new_project" build app
 docker compose --env-file .env.production -p "$new_project" up -d --no-build --force-recreate app
 # Node is not listening at container start. Wait until the app responds.
+# Accept 200 and redirects. curl --fail treats the basePath 404 on `/` as down.
+health_url="http://127.0.0.1:${target_port}${APP_PATH}"
 ready=false
+last_status=""
 for _ in $(seq 1 30); do
-  if curl --fail --silent --max-time 5 "http://127.0.0.1:${target_port}/" >/dev/null; then
-    ready=true
-    break
-  fi
+  last_status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$health_url" || true)
+  case "$last_status" in
+    200|301|302|307|308) ready=true; break ;;
+  esac
   sleep 2
 done
 if [[ "$ready" != true ]]; then
-  echo 'New slot is not accepting requests; existing traffic unchanged' >&2
+  echo "New slot is not accepting requests at ${health_url} (last HTTP status: ${last_status:-none}); existing traffic unchanged" >&2
   exit 1
 fi
 backup=$(mktemp "/tmp/nginx-${IMAGE_NAME}.XXXXXX")
@@ -89,11 +94,15 @@ if ! nginx -t || ! nginx -s reload; then
   exit 1
 fi
 # Roll back routing if immediate post-switch probe fails.
-if ! curl --fail --silent --max-time 5 "http://127.0.0.1:${target_port}/" >/dev/null; then
-  echo 'Post-switch probe failed; restoring previous config' >&2
-  restore
-  exit 1
-fi
+post_status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$health_url" || true)
+case "$post_status" in
+  200|301|302|307|308) ;;
+  *)
+    echo "Post-switch probe failed at ${health_url} (HTTP ${post_status:-none}); restoring previous config" >&2
+    restore
+    exit 1
+    ;;
+esac
 rm -f "$backup"
 echo "Switched Nginx to ${target} (${target_port})"
 # Allow in-flight requests to drain before stopping the old slot.
