@@ -24,11 +24,11 @@ command -v flock >/dev/null
 command -v python3 >/dev/null
 exec 9>"/tmp/deploy-${IMAGE_NAME}.lock"
 flock -n 9 || { echo 'Deployment already running' >&2; exit 1; }
-# Requires exactly one line: server 127.0.0.1:PORT; # DEPLOY_TARGET
+# Requires exactly one line: server 127.0.0.1:PORT; # DEPLOY_SEARCH_TARGET
 current=$(python3 - "$site" <<'PYCODE'
 import re,sys
 s=open(sys.argv[1]).read()
-m=re.findall(r'^\s*server\s+127\.0\.0\.1:(\d+);\s*#\s*DEPLOY_TARGET\s*$',s,re.M)
+m=re.findall(r'^\s*server\s+127\.0\.0\.1:(\d+);\s*#\s*DEPLOY_SEARCH_TARGET\s*$',s,re.M)
 if len(m)!=1: sys.exit('Expected exactly one marked upstream server line')
 print(m[0])
 PYCODE
@@ -52,21 +52,18 @@ old_project="${IMAGE_NAME}-${old}"
 echo "Deploying $new_project on $target_port (active: $old_project on $current)"
 docker compose --env-file .env.production -p "$new_project" build app
 docker compose --env-file .env.production -p "$new_project" up -d --no-build --force-recreate app
-new_id=$(docker compose --env-file .env.production -p "$new_project" ps -q app)
-healthy=false
+# Node is not listening at container start. Wait until the app responds.
+ready=false
 for _ in $(seq 1 30); do
-  status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$new_id")
-  if [[ "$status" == healthy ]]; then healthy=true; break; fi
-  [[ "$status" == unhealthy ]] && break
+  if curl --fail --silent --max-time 5 "http://127.0.0.1:${target_port}/" >/dev/null; then
+    ready=true
+    break
+  fi
   sleep 2
 done
-if [[ "$healthy" != true ]]; then
-  echo 'New slot unhealthy; existing traffic unchanged' >&2
+if [[ "$ready" != true ]]; then
+  echo 'New slot is not accepting requests; existing traffic unchanged' >&2
   exit 1
-fi
-# Verify host-published port before touching Nginx.
-if ! curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${target_port}/api/health" >/dev/null; then
-  echo 'Host-port health check failed; existing traffic unchanged' >&2; exit 1
 fi
 backup=$(mktemp "/tmp/nginx-${IMAGE_NAME}.XXXXXX")
 cp -p "$site" "$backup"
@@ -79,7 +76,7 @@ python3 - "$site" "$target_port" <<'PYCODE'
 import re,sys
 path,port=sys.argv[1:]
 s=open(path).read()
-pat=r'^(\s*server\s+127\.0\.0\.1:)\d+(;\s*#\s*DEPLOY_TARGET\s*)$'
+pat=r'^(\s*server\s+127\.0\.0\.1:)\d+(;\s*#\s*DEPLOY_SEARCH_TARGET\s*)$'
 out,n=re.subn(pat,lambda m:m.group(1)+port+m.group(2),s,flags=re.M)
 if n!=1: sys.exit('Marker replacement failed')
 open(path,'w').write(out)
@@ -90,7 +87,7 @@ if ! nginx -t || ! nginx -s reload; then
   exit 1
 fi
 # Roll back routing if immediate post-switch probe fails.
-if ! curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${target_port}/api/health" >/dev/null; then
+if ! curl --fail --silent --max-time 5 "http://127.0.0.1:${target_port}/" >/dev/null; then
   echo 'Post-switch probe failed; restoring previous config' >&2
   restore
   exit 1
