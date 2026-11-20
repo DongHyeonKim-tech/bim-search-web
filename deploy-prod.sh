@@ -1,112 +1,336 @@
+
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
+# ============================================================
+# Blue/Green Docker Compose Deployment
+#
+# Run as: deploy user
+# Nginx switch: root-owned switch-nginx-target via sudo
+#
+# Required .env.production:
+#   IMAGE_NAME
+#   BLUE_PORT
+#   GREEN_PORT
+#
+# Required /etc/nginx/deploy-targets.conf:
+#   PROJECT NGINX_CONF MARKER BLUE_PORT GREEN_PORT
+# ============================================================
+
 cd "$(dirname "$(realpath "$0")")"
-[[ -f .env.production ]] || { echo 'Missing .env.production' >&2; exit 1; }
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+# ------------------------------------------------------------
+# 1. Load production environment
+# ------------------------------------------------------------
+
+[[ -f .env.production ]] ||
+  die "Missing .env.production"
+
 set -a
 source .env.production
 set +a
+
 : "${IMAGE_NAME:?Set IMAGE_NAME}"
-: "${NGINX_SITE:?Set NGINX_SITE}"
 : "${BLUE_PORT:?Set BLUE_PORT}"
 : "${GREEN_PORT:?Set GREEN_PORT}"
-[[ "$IMAGE_NAME" =~ ^[a-z0-9][a-z0-9_.-]*$ ]] || { echo 'Invalid IMAGE_NAME' >&2; exit 1; }
-[[ "$NGINX_SITE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Invalid NGINX_SITE' >&2; exit 1; }
+
+[[ "$IMAGE_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] ||
+  die "Invalid IMAGE_NAME"
+
 for port in "$BLUE_PORT" "$GREEN_PORT"; do
-  [[ "$port" =~ ^[0-9]+$ ]] && (( port>=1 && port<=65535 )) || { echo 'Invalid port' >&2; exit 1; }
+  [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] ||
+    die "Invalid port: $port"
+
+  (( 10#$port <= 65535 )) ||
+    die "Port out of range: $port"
 done
-[[ "$BLUE_PORT" != "$GREEN_PORT" ]] || { echo 'Ports must differ' >&2; exit 1; }
-[[ "${BUILD_ENV:-prod}" == prod ]] || { echo 'Production requires BUILD_ENV=prod' >&2; exit 1; }
-# next.config.ts basePath. `/` returns 404, so readiness must hit this path.
-APP_PATH=/search
+
+[[ "$BLUE_PORT" != "$GREEN_PORT" ]] ||
+  die "BLUE_PORT and GREEN_PORT must differ"
+
+[[ "${BUILD_ENV:-prod}" == "prod" ]] ||
+  die "Production requires BUILD_ENV=prod"
+
 BUILD_ENV=prod
 RUNTIME_ENV_FILE=.env.production
-[[ -f "$RUNTIME_ENV_FILE" ]] || { echo 'Missing .env.production' >&2; exit 1; }
-site="/etc/nginx/sites-available/$NGINX_SITE"
-[[ -f "$site" ]] || { echo "Missing Nginx site: $site" >&2; exit 1; }
-command -v nginx >/dev/null
-command -v flock >/dev/null
-command -v python3 >/dev/null
-exec 9>"/tmp/deploy-${IMAGE_NAME}.lock"
-flock -n 9 || { echo 'Deployment already running' >&2; exit 1; }
-# Requires exactly one line: server 127.0.0.1:PORT; # DEPLOY_SEARCH_TARGET
-current=$(python3 - "$site" <<'PYCODE'
-import re,sys
-s=open(sys.argv[1]).read()
-m=re.findall(r'^\s*server\s+127\.0\.0\.1:(\d+);\s*#\s*DEPLOY_SEARCH_TARGET\s*$',s,re.M)
-if len(m)!=1: sys.exit('Expected exactly one marked upstream server line')
-print(m[0])
+
+export BUILD_ENV IMAGE_NAME RUNTIME_ENV_FILE
+
+# ------------------------------------------------------------
+# 2. Check required commands and permissions
+# ------------------------------------------------------------
+
+for cmd in docker python3 flock curl sudo; do
+  command -v "$cmd" >/dev/null ||
+    die "Missing command: $cmd"
+done
+
+docker info >/dev/null 2>&1 ||
+  die "Docker daemon is unavailable or permission denied"
+
+switch_script="/usr/local/sbin/switch-nginx-target"
+allowlist="/etc/nginx/deploy-targets.conf"
+
+[[ -x "$switch_script" ]] ||
+  die "Missing Nginx switch script: $switch_script"
+
+[[ -r "$allowlist" ]] ||
+  die "Cannot read Nginx deployment allowlist"
+
+# Check sudo permission without executing the switch.
+sudo -n -l "$switch_script" >/dev/null ||
+  die "deploy user cannot run Nginx switch via passwordless sudo"
+
+# ------------------------------------------------------------
+# 3. Acquire project deployment lock
+# ------------------------------------------------------------
+
+lock_dir="${HOME}/.local/state/deploy-locks"
+
+mkdir -p "$lock_dir"
+chmod 700 "$lock_dir"
+
+exec 9>"${lock_dir}/${IMAGE_NAME}.lock"
+
+flock -n 9 ||
+  die "Deployment already running: $IMAGE_NAME"
+
+# ------------------------------------------------------------
+# 4. Resolve project Nginx configuration
+# ------------------------------------------------------------
+
+found=false
+nginx_conf=""
+deploy_marker=""
+allowed_blue=""
+allowed_green=""
+
+while read -r name conf marker blue green extra; do
+  [[ -z "${name:-}" || "$name" == \#* ]] && continue
+
+  if [[ "$name" == "$IMAGE_NAME" ]]; then
+    [[ "$found" == false ]] ||
+      die "Duplicate project in allowlist"
+
+    [[ -z "${extra:-}" ]] ||
+      die "Invalid allowlist entry"
+
+    found=true
+    nginx_conf="$conf"
+    deploy_marker="$marker"
+    allowed_blue="$blue"
+    allowed_green="$green"
+  fi
+done < "$allowlist"
+
+[[ "$found" == true ]] ||
+  die "Project not registered in Nginx allowlist: $IMAGE_NAME"
+
+[[ "$nginx_conf" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] ||
+  die "Invalid Nginx conf name"
+
+[[ "$deploy_marker" =~ ^DEPLOY_[A-Z0-9_]+$ ]] ||
+  die "Invalid deployment marker"
+
+[[ "$BLUE_PORT" == "$allowed_blue" &&
+   "$GREEN_PORT" == "$allowed_green" ]] ||
+  die "Port configuration differs from Nginx allowlist"
+
+site="/etc/nginx/sites-available/${nginx_conf}"
+
+[[ -r "$site" ]] ||
+  die "Cannot read Nginx site: $site"
+
+# ------------------------------------------------------------
+# 5. Detect current active Blue/Green slot
+# ------------------------------------------------------------
+
+current=$(python3 - "$site" "$deploy_marker" <<'PYCODE'
+import re
+import sys
+
+path, marker = sys.argv[1:]
+
+pattern = (
+    r'^\s*server\s+127\.0\.0\.1:'
+    r'(\d+);[ \t]*#[ \t]*'
+    + re.escape(marker)
+    + r'[ \t]*$'
+)
+
+with open(path, encoding="utf-8") as f:
+    content = f.read()
+
+matches = re.findall(pattern, content, re.MULTILINE)
+
+if len(matches) != 1:
+    sys.exit(
+        f"Expected exactly one {marker}, "
+        f"found {len(matches)}"
+    )
+
+print(matches[0])
 PYCODE
 )
+
 if [[ "$current" == "$BLUE_PORT" ]]; then
-  target=green; target_port="$GREEN_PORT"; old=blue
+  old="blue"
+  target="green"
+  target_port="$GREEN_PORT"
+
 elif [[ "$current" == "$GREEN_PORT" ]]; then
-  target=blue; target_port="$BLUE_PORT"; old=green
+  old="green"
+  target="blue"
+  target_port="$BLUE_PORT"
+
 else
-  echo "Nginx points to unexpected port $current. Initialize site with BLUE_PORT or GREEN_PORT." >&2; exit 1
+  die "Unexpected active Nginx port: $current"
 fi
-# Guard against silently bootstrapping with a missing active container.
-active_id=$(docker compose --env-file .env.production -p "${IMAGE_NAME}-${old}" ps -q app 2>/dev/null || true)
-[[ -n "$active_id" && "$(docker inspect -f '{{.State.Running}}' "$active_id")" == true ]] || {
-  echo "Active ${old} container not running. Bootstrap first; refusing traffic switch." >&2; exit 1;
-}
-export BUILD_ENV IMAGE_NAME RUNTIME_ENV_FILE HOST_PORT="$target_port"
-export IMAGE_TAG="${IMAGE_TAG:-prod-$(date +%Y%m%d%H%M%S)}"
-new_project="${IMAGE_NAME}-${target}"
+
 old_project="${IMAGE_NAME}-${old}"
-echo "Deploying $new_project on $target_port (active: $old_project on $current)"
-docker compose --env-file .env.production -p "$new_project" build app
-docker compose --env-file .env.production -p "$new_project" up -d --no-build --force-recreate app
-# Node is not listening at container start. Wait until the app responds.
-# Accept 200 and redirects. curl --fail treats the basePath 404 on `/` as down.
-health_url="http://127.0.0.1:${target_port}${APP_PATH}"
+new_project="${IMAGE_NAME}-${target}"
+
+echo "========================================"
+echo "Project     : $IMAGE_NAME"
+echo "Nginx conf  : $nginx_conf"
+echo "Marker      : $deploy_marker"
+echo "Active      : $old_project ($current)"
+echo "Target      : $new_project ($target_port)"
+echo "========================================"
+
+# ------------------------------------------------------------
+# 6. Verify active container
+# ------------------------------------------------------------
+
+active_id=$(
+  docker compose \
+    --env-file .env.production \
+    -p "$old_project" \
+    ps -q app 2>/dev/null || true
+)
+
+[[ -n "$active_id" ]] ||
+  die "Active container not found: $old_project"
+
+[[ "$(docker inspect -f '{{.State.Running}}' "$active_id")" == "true" ]] ||
+  die "Active container is not running: $old_project"
+
+# ------------------------------------------------------------
+# 7. Build and start inactive slot
+# ------------------------------------------------------------
+
+export HOST_PORT="$target_port"
+export IMAGE_TAG="${IMAGE_TAG:-prod-$(date +%Y%m%d%H%M%S)}"
+
+echo "Building $new_project..."
+
+docker compose \
+  --env-file .env.production \
+  -p "$new_project" \
+  build app
+
+echo "Starting $new_project..."
+
+docker compose \
+  --env-file .env.production \
+  -p "$new_project" \
+  up -d --no-build --force-recreate app
+
+# ------------------------------------------------------------
+# 8. Wait for application readiness
+# ------------------------------------------------------------
+
 ready=false
-last_status=""
+
 for _ in $(seq 1 30); do
-  last_status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$health_url" || true)
-  case "$last_status" in
-    200|301|302|307|308) ready=true; break ;;
-  esac
+  if curl \
+    --fail \
+    --silent \
+    --max-time 5 \
+    "http://127.0.0.1:${target_port}/" \
+    >/dev/null; then
+
+    ready=true
+    break
+  fi
+
   sleep 2
 done
-if [[ "$ready" != true ]]; then
-  echo "New slot is not accepting requests at ${health_url} (last HTTP status: ${last_status:-none}); existing traffic unchanged" >&2
-  exit 1
+
+[[ "$ready" == true ]] ||
+  die "New container is not ready; existing traffic unchanged"
+
+# ------------------------------------------------------------
+# 9. Switch Nginx to new slot
+# ------------------------------------------------------------
+
+echo "Switching Nginx to $target_port..."
+
+sudo -n "$switch_script" \
+  "$IMAGE_NAME" \
+  "$current" \
+  "$target_port"
+
+# ------------------------------------------------------------
+# 10. Post-switch health check
+# ------------------------------------------------------------
+
+if ! curl \
+  --fail \
+  --silent \
+  --max-time 5 \
+  "http://127.0.0.1:${target_port}/" \
+  >/dev/null; then
+
+  echo "Post-switch health check failed" >&2
+  echo "Rolling back Nginx to $current..." >&2
+
+  sudo -n "$switch_script" \
+    "$IMAGE_NAME" \
+    "$target_port" \
+    "$current" || {
+      echo "CRITICAL: Nginx rollback failed" >&2
+      exit 1
+    }
+
+  die "Deployment rolled back"
 fi
-backup=$(mktemp "/tmp/nginx-${IMAGE_NAME}.XXXXXX")
-cp -p "$site" "$backup"
-restore() {
-  cp -p "$backup" "$site"
-  nginx -t && nginx -s reload || echo 'WARNING: Nginx restoration/reload failed; manual action required' >&2
-}
-# Replace only the marked line, preserve everything else.
-python3 - "$site" "$target_port" <<'PYCODE'
-import re,sys
-path,port=sys.argv[1:]
-s=open(path).read()
-pat=r'^(\s*server\s+127\.0\.0\.1:)\d+(;\s*#\s*DEPLOY_SEARCH_TARGET\s*)$'
-out,n=re.subn(pat,lambda m:m.group(1)+port+m.group(2),s,flags=re.M)
-if n!=1: sys.exit('Marker replacement failed')
-open(path,'w').write(out)
-PYCODE
-if ! nginx -t || ! nginx -s reload; then
-  echo 'Nginx switch failed, restoring previous config' >&2
-  restore
-  exit 1
-fi
-# Roll back routing if immediate post-switch probe fails.
-post_status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$health_url" || true)
-case "$post_status" in
-  200|301|302|307|308) ;;
-  *)
-    echo "Post-switch probe failed at ${health_url} (HTTP ${post_status:-none}); restoring previous config" >&2
-    restore
-    exit 1
-    ;;
-esac
-rm -f "$backup"
-echo "Switched Nginx to ${target} (${target_port})"
-# Allow in-flight requests to drain before stopping the old slot.
-sleep "${DRAIN_SECONDS:-30}"
-# If old slot shutdown fails, keep new traffic active; report error.
-docker compose --env-file .env.production -p "$old_project" stop -t 60 app
-echo "PROD deployed: ${IMAGE_NAME} ${IMAGE_TAG}; active=${target}"
+
+echo "Nginx switched successfully"
+
+# ------------------------------------------------------------
+# 11. Drain and stop previous slot
+# ------------------------------------------------------------
+
+drain_seconds="${DRAIN_SECONDS:-30}"
+
+[[ "$drain_seconds" =~ ^[0-9]+$ ]] ||
+  die "Invalid DRAIN_SECONDS"
+
+echo "Draining previous slot for ${drain_seconds}s..."
+
+sleep "$drain_seconds"
+
+echo "Stopping $old_project..."
+
+docker compose \
+  --env-file .env.production \
+  -p "$old_project" \
+  stop -t 60 app
+
+# ------------------------------------------------------------
+# 12. Deployment completed
+# ------------------------------------------------------------
+
+echo "========================================"
+echo "PROD deployment completed"
+echo "Project : $IMAGE_NAME"
+echo "Image   : $IMAGE_TAG"
+echo "Active  : $target"
+echo "Port    : $target_port"
+echo "========================================"
