@@ -252,7 +252,7 @@ for _ in $(seq 1 30); do
     --fail \
     --silent \
     --max-time 5 \
-    "http://127.0.0.1:${target_port}/" \
+    "http://127.0.0.1:${target_port}/search" \
     >/dev/null; then
 
     ready=true
@@ -284,7 +284,7 @@ if ! curl \
   --fail \
   --silent \
   --max-time 5 \
-  "http://127.0.0.1:${target_port}/" \
+  "http://127.0.0.1:${target_port}/search" \
   >/dev/null; then
 
   echo "Post-switch health check failed" >&2
